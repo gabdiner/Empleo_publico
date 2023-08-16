@@ -1,0 +1,61 @@
+---
+title: "Grafico_feo"
+author: "Gabriel Diner"
+date: "2023-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+library(lubridate)
+```
+
+```{r}
+Nacion_2009_2011 <- read_delim("Data/Nacion/1_export-puestos_trabajo_2009_2011.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+
+Nacion_2012_2015 <- read_delim("Data/Nacion/2_export-puestos_trabajo_2012_2015.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+
+Nacion_2016_2019 <- read_delim("Data/Nacion/3_export-puestos_trabajo_2016_2019.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+
+Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+
+Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
+```
+
+```{r}
+Nacion_2009_2022 <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+Autoridades_Superiores <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha, JURISDICCION_POR_FECHA) %>% 
+  summarise(puestos = sum(puestos_de_trabajo))
+
+```
+
+```{r}
+Autoridades_Superiores %>% 
+  filter(periodo_fecha > 01/01/2015) %>%
+  ggplot(aes(periodo_fecha, puestos)) +
+  geom_line(aes(color = JURISDICCION_POR_FECHA)) + 
+  geom_point(aes(color = JURISDICCION_POR_FECHA)) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y %m") +
+  labs(title = "Funcionarios políticos por jurisdicción años 2009-2022") +
+  ylab("Puestos") +
+  xlab("Año y mes") +
+  theme_linedraw() +
+  theme(legend.position = "bottom")
+```
