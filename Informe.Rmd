@@ -38,9 +38,21 @@ Inflacion <- read_delim("Data/inflacioneta.csv",
     delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
     trim_ws = TRUE)
 ```
+
+
 ```{r}
+#Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. No nos pareció tan grave.
 Nacion_2009_2022 <- Nacion_2009_2022 %>% 
   filter(!suma_costo_laboral > 2.246033e+14)
+```
+```{r}
+#Cómo detectamos el error:
+Nacion_2009_2022_error <- Nacion_2009_2022 %>% 
+  filter(!suma_costo_laboral > 2.246033e+14) %>% 
+  mutate(clt_promedio = suma_costo_laboral /puestos_de_trabajo)
+Nacion_2009_2022_error %>% 
+  summarize(sum(suma_costo_laboral / sum(puestos_de_trabajo)))
+# El costo laboral promedio por persona del período 2009-2022 es de más de 8 millones de pesos y esa definitivamente no es la realidad. Todo el análisis que hacemos más abajo está hecho en base a estos datos erróneos. No sabemos qué actitud tomar sinceramente.
 ```
 
 # **Introducción**
