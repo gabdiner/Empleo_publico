@@ -1,7 +1,7 @@
 ---
 title: "Informe"
 author: "Gabriel Diner y Silvina Pichetto"
-date: "2023-07-06"
+date: "2023-08-22"
 output: html_document
 ---
 
@@ -42,7 +42,7 @@ Inflacion <- read_delim("Data/inflacioneta.csv",
 
 
 ```{r}
-#Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. No nos pareció tan grave.
+#Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. 
 Nacion_2009_2022 <- Nacion_2009_2022 %>% 
   filter(!suma_costo_laboral > 2.246032e+13)
 ```
@@ -125,15 +125,15 @@ deflactor <- deflactor %>%
 
 # **Introducción**
 
-Al momento de la producción de este trabajo nos encontramos atravesando el proceso electoral para la elección del cargo de Presidente de la Argentina y demás cargos legislativos. Uno de los ejes de campaña de algunos candidatos gira alrededor del rol del Estado y del empleo público. Se discute, entre otras cosas, que hay una cantidad enorme de empleados públicos, que el Estado es un refugio para los políticos y que el gasto que estos últimos generan es demasiado alto. En este trabajo nos proponemos analizar cómo se comporta el crecimiento del empleo en general y el de los cargos políticos políticos en particular para responder algunas preguntas tales como:
-¿Cómo ha crecido el empleo público? 
+Al momento de la producción de este trabajo nos encontramos atravesando el proceso electoral para la elección del cargo de Presidente de la Argentina y demás cargos legislativos. Uno de los ejes de campaña de algunos candidatos gira alrededor del rol del Estado y del empleo público. Se discute, entre otras cosas, que hay una cantidad enorme de empleados públicos, que el Estado es un refugio para los políticos y que el gasto que estos últimos generan es demasiado alto. En este trabajo nos proponemos analizar cómo se comporta el crecimiento del empleo en general y el de los cargos políticos en particular para responder algunas preguntas tales como:
+¿Cómo ha crecido el empleo público nacional? 
 ¿Cómo ha crecido la planta de funcionarios políticos? 
 ¿Cuánto le ha costado al Estado "mantener" a los empleados públicos y a los funcionarios políticos a lo largo del tiempo? 
 Para dar respuesta a estas preguntas, trabajaremos con datos obtenidos de la [BIEP](https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo-publico/biep/informes-estadisticos) (Base integrada de Empleo Público) tomando todos los períodos disponibles desde 2009 a 2022. A los efectos de definir a los funcionarios políticos, incluimos en ellos tanto a las autoridades superiores, es decir Ministros, Secretarios y Subsecretarios, así como también los cargos extraescalafonarios, los cuales son cargos que son creados por Decreto o norma de rango superior para atender fines específicos (tales como auditores internos, directores o presidentes de diversos organismos, etc). Esto deja fuera los cargos de alta dirección pública tales como Directores Generales y Nacionales, Directores Simples, Coordinadores, etc.
 
 ## **Evolución del empleo público** 
 
-### **Funcionarios políticos** 
+### **Funcionarios políticos nacionales** 
 
 En el siguiente gráfico analizaremos la evolución de la cantidad de funcionarios durante el período 2009-2022:
 
@@ -144,7 +144,7 @@ Autoridades_Superiores_Q %>%
   geom_point() +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   geom_smooth(method = "gam") +
-  labs(title = "Evolución de Cantidad de Funcionarios 2009 - 2022") +
+  labs(title = "Evolución de Cantidad de Funcionarios Nacionales 2009 - 2022") +
   ylab("Cantidad de Funcionarios") +
   xlab("Año")
 ```
@@ -167,18 +167,18 @@ Puede notarse que existen puntos en los cuales se produce una brusca disminució
 
 Nos gustaría esbozar algunas hipótesis para estos comportamientos, las cuales no estarán sujetas a corroboración en el presente trabajo, pero que pueden conformar un línea a indagar en futuros análisis.
 
-En principio, durante los cambios de gestión como consecuencia de resultados electorales o de "relanzamientos" de gestión suelen producirse dos fenómenos simultáneos. Por un lado se producen cambios en la estructura de gobierno, lo cual produce un impacto en la cantidad de cargos y por otro se produce un recambio de funcionarios políticos. Ambos fenómenos se producen de diferentes maneras. En el caso de la cantidad de cargos, son impactados por la modificación de las normas que regulan la estructura u organigrama de los Ministerios. En el caso de los funcionarios políticos, los cambios requieren la aceptación de la renuncia de los salientes y la tramitación de los nuevos nombramientos. Estos cambios, en una estructura burocrática como la estatal, suelen llevar un tiempo considerable. Por lo tanto, teniendo en cuenta que cada 4 años en los meses de diciembre de años impares asumen las autoridades electas producto de las elecciones generales, es razonable asumir que los valores de diciembre de 2009, enero de 2016 y enero 2020 responden a cambios de gestión como consecuencia de resultados electorales. En el caso de marzo de 2018, revisando recortes periodísticos tales como [este](https://www.infobae.com/politica/2018/03/11/achique-del-estado-hasta-el-momento-el-recorte-de-cargos-politicos-genera-mas-dudas-que-certezas/). Podemos ver que podría tratarse de un relanzamiento de la gestión. Volveremos en breve a este punto. Restaría analizar a qué responden los hitos de noviembre de 2012 y de junio/julio de 2020 pero, dado el alcance de este trabajo, no lo profundizaremos aquí.
+En principio, durante los cambios de gestión como consecuencia de resultados electorales o de "relanzamientos" de gestión suelen producirse dos fenómenos simultáneos. Por un lado se producen cambios en la estructura de gobierno, lo cual produce un impacto en la cantidad de cargos y por otro se produce un recambio de funcionarios políticos. Ambos fenómenos se producen de diferentes maneras. En el caso de la cantidad de cargos, son impactados por la modificación de las normas que regulan la estructura u organigrama de los Ministerios. En el caso de los funcionarios políticos, los cambios suelen requerir la aceptación de la renuncia de los salientes y la tramitación de los nuevos nombramientos. Estos cambios, en una estructura burocrática como la estatal, suelen llevar un tiempo considerable. Por lo tanto, teniendo en cuenta que en los meses de diciembre de años impares asumen las autoridades electas producto de las elecciones generales (ya sean legislativas o presidenciales), es razonable asumir que los valores de diciembre de 2009, enero de 2016 y enero 2020 responden a cambios de gestión como consecuencia de resultados electorales. En el caso de marzo de 2018, revisando recortes periodísticos tales como [este](https://www.infobae.com/politica/2018/03/11/achique-del-estado-hasta-el-momento-el-recorte-de-cargos-politicos-genera-mas-dudas-que-certezas/) podemos ver que podría tratarse de un relanzamiento de la gestión. Volveremos en breve a este punto. Restaría analizar a qué responden los hitos de noviembre de 2012 y de junio/julio de 2020 pero, dado el alcance de este trabajo, no lo profundizaremos aquí.
 
-### **Evolución de la cantidad de funcionarios** 
+### **Evolución de la cantidad de funcionarios nacionales** 
 
 Durante el período comprendido entre enero de 2009 y mayo de 2016 se puede observar un crecimiento estable y sostenido de los funcionarios políticos, el cual se acelera a partir de ese momento y se ve abruptamente interrumpido en marzo de 2018, para mantenerse estable por unos meses. Esto se debió en su momento a la necesidad de aquel gobierno de realizar un fuerte ajuste fiscal, el cual incluyó como parte del paquete de medidas la modificación de la estructura, la eliminación de cargos y, con ellos, de los empleos de los funcionarios que los ocupaban. Sin embargo, en diciembre de ese año, vuelve a incrementarse significativamente la cantidad de funcionarios, para luego disminuir paulatinamente, manteniendo valores similares a los de 2014. A partir de julio de 2020 se retoma un incremento gradual y sostenido, el cual comienza a acelerarse en julio de 2022, alcanzando valores similares a los de 2015.
 
 ### **En resumen** 
 
-Durante el período analizado puede observarse que entre enero de 2009 y mayo de 2016 se produjo un incremento estable y sostenido de los funcionarios políticos, tendencia que se acentúa a partir de entonces hasta alzanzar el máximo valor en enero de 2018 y que se revierte bruscamente en marzo de ese año, volviendo a valores similares a los de 2014. Luego de ello se produce una tendencia que se revierte gradualmente en julio de 2020 y se acelera a partir de julio de 2022, pero sin superar los maximos alcanzados entre mayo de 2016 y marzo de 2018.
+Durante el período analizado puede observarse que entre enero de 2009 y mayo de 2016 se produjo un incremento estable y sostenido de los funcionarios políticos, tendencia que se acentúa a partir de entonces hasta alcanzar el máximo valor en enero de 2018 y que se revierte bruscamente en marzo de ese año, volviendo a valores similares a los de 2014. Luego de ello vuelve a crecer gradualmente en julio de 2020 y acelera el ritmo de crecimiento a partir de julio de 2022, pero sin superar los maximos alcanzados entre mayo de 2016 y marzo de 2018.
 Resta ver, ahora, el comportamiento de la evolución del empleo en general.
 
-## **Empleo en general**
+## **Empleo público nacional en general**
 
 ```{r}
 Empleados_Q %>% 
@@ -188,7 +188,7 @@ Empleados_Q %>%
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(labels = scales::comma_format()) +
   geom_smooth(method ="gam") +
-  labs(title = "Evolución de Cantidad de Empleados 2009 - 2022") +
+  labs(title = "Evolución de Cantidad de Empleados Públicos 2009 - 2022") +
   ylab("Cantidad de Empleados") +
   xlab("Año")
 ```
@@ -196,7 +196,7 @@ Empleados_Q %>%
 Como puede observarse, en líneas generales el empleo en general ha tendido a crecer prácticamente durante todo el período, con un incremento del ritmo de crecimiento ciertamente significativo en mayo de 2010 y marzo de 2015. Sin embargo la cantidad de empleados encuentra un período de decrecimiento a partir de noviembre de 2016 y hasta enero de 2019. A partir de ese momento se retoma la tendencia al crecimiento. 
 Además de esta descripción general, queremos llamar la atención sobre algunos hitos.
 
-### Variaciones bruscas de empleados
+### Variaciones bruscas de empleados públicos
 
 -   enero a marzo de 2009 encuentra valores de alrededor de 250K de empleados, muy por debajo de la serie que siempre supera los 300K.
 -   diciembre de 2010: pasa de 357702 a 322563, para recuperarse en el siguiente mes alcanzando 366914.
@@ -204,10 +204,10 @@ Además de esta descripción general, queremos llamar la atención sobre algunos
 -   septiembre y noviembre de 2021: hay un salto aislado de alrededor de 25000 empleados, cuando el nivel para los períodos previos y posteriores es de cerca de 490000. 
 Estas variaciones pueden deberse a deficiencias en la remisión de los datos, tal como se consigna en el sitio web donde se publicaron estos sets de datos. Allí se advierte que los datos publicados están completos desde Marzo 2015 y que en algunos períodos se pueden observar faltantes de datos de Organismos/Entidades dado que depende de la remisión de datos de las mismas a los sistemas transversales. 
 
-### **Evolución de la cantidad de empleados**
+### **Evolución de la cantidad de empleados públicos**
 
 De lo dicho hasta ahora se desprende que en el período bajo análisis, el aumento y la disminución de los empleados y de los funcionarios suelen ir de la mano. Esto se observa claramaente hasta noviembre de 2016. A partir de ese momento la cantidad de funcionarios continúa aumentando, mientras que la de empleados comienza a disminuir. Como vimos antes, la disminución de funcionarios se produjo más tarde, en marzo de 2018, que alcanza un mínimo de 743 personas en abril de 2018 y permanece en valores de entre 750 y 800 hasta diciembre de 2019. Una vez pasado el período transicional del cambio de gobierno, en julio de 2020, la cantidad de funcionarios vuelve a asumir la tendencia creciente. Esta tendencia en el caso del empleo en general se produce antes, en enero de 2019. 
-Mas allá de estos variaciones en los momentos en los que se producen los aumentos y disminuciones, el hecho de que ambas variables tienden a comportarse de manera similar puede verificarse fácilmente correlacionando ambas.
+Mas allá de estas variaciones en los momentos en los que se producen los aumentos y disminuciones, el hecho de que ambas variables tienden a comportarse de manera similar puede verificarse fácilmente correlacionando ambas.
 
 ```{r}
 cor(Comparativo$puestos_AS, Comparativo$puestos_total)
@@ -265,7 +265,7 @@ deflactor %>%
   geom_point(aes(y = cla_deflactado_base_100, color = "Costo laboral deflactado")) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(breaks = c(0, 250, 500, 750)) +
-  geom_smooth(aes(y = cla_deflactado_base_100)) +
+  geom_smooth(aes(y = cla_deflactado_base_100), method = "gam") +
   labs(title = "Evolución Costo Laboral Funcionarios", subtitle = "Ajustado por inflación con base 2009 = 100") +
   ylab("Costo Laboral") +
   xlab("Año") +
@@ -290,7 +290,7 @@ deflactor %>%
   geom_point(aes(y = clt_deflactado_base_100, color = "Costo laboral deflactado")) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(breaks = c(0, 250, 500, 750)) +
-  geom_smooth(aes(y = clt_deflactado_base_100)) +
+  geom_smooth(aes(y = clt_deflactado_base_100), method ="gam") +
   labs(title = "Costo Laboral Deflactado - Total Empleados", subtitle = "Ajustado por inflación con base 2009 = 100") +
   ylab("Costo Laboral") +
   xlab("Año") +
@@ -315,7 +315,7 @@ Comparativo %>%
   geom_line(aes(y= proporcion, color = "Impacto % de Funcionarios")) + 
   geom_point(aes(y= proporcion, color = "Impacto % de Funcionarios")) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
-  geom_smooth(aes(y= proporcion)) +
+  geom_smooth(aes(y= proporcion), method ="gam") +
   labs(title = "Evolución del Costo Laboral de los Funcionarios como Porcentaje del Total") +
   ylab("% del Costo Laboral Total") +
   xlab("Año") +
