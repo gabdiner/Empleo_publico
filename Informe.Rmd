@@ -138,6 +138,7 @@ Para dar respuesta a estas preguntas, trabajaremos con datos obtenidos de la [BI
 En el siguiente gráfico analizaremos la evolución de la cantidad de funcionarios durante el período 2009-2022:
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y la cantidad de funcionarios y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. La linea muestra un punto por cada mes de los años mencionados, representando cada punto la cantidad de funcionarios para cada mes.
 Autoridades_Superiores_Q %>% 
   ggplot(aes(periodo_fecha, puestos_AS)) +
   geom_line() + 
@@ -181,6 +182,7 @@ Resta ver, ahora, el comportamiento de la evolución del empleo en general.
 ## **Empleo público nacional en general**
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y la cantidad de empleados públicos y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. La linea muestra un punto por cada mes de los años mencionados, representando cada punto la cantidad de empleados para cada mes.
 Empleados_Q %>% 
   ggplot(aes(periodo_fecha, puestos_total)) +
   geom_line() + 
@@ -219,6 +221,7 @@ Efectivamente, el índice de correlación de 0,8 es lo suficientemente alto como
 Ya hemos analizado la evolución de la cantidad de empleados y funcionarios. Veamos ahora qué sucede con el gasto asociado a ambos conjuntos analizando el costo laboral de ambos. El costo laboral es una variable que, además de incluir el salario bruto de los agentes, incluye también las cargas patronales y es una medida del gasto total que conlleva el salario de un empleado. Consideramos que una primera aproximación a esta cuestión puede ser la comparación de la evolución del empleo en general y de los funcionarios.
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y el costo laboral expresado en millones de pesos y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. Hay dos líneas que muestran un punto por cada mes de los años mencionados, representando cada punto el monto gastado en cada mes. Una línea representa el costo laboral total de todos los empleados públicos, la cual crece de forma aparentemente exponencial, comenzando en de la ordenada al origen y superando los 300.000 millones en el punto correspondiente a diciembre de 2022. La otra línea representa el costo laboral sólo de los funcionarios políticos, la cual aparentemente permanece constante en un valor cercano a cero.
 ggplot(Comparativo, aes(x = periodo_fecha)) +
   geom_line(aes(y = costo_laboral_total, color = "Costo Laboral Total")) +
   geom_line(aes(y = suma_costo_laboral_Autoridades, color = "Costo Laboral Funcionarios")) +
@@ -239,6 +242,7 @@ Decíamos que al parecer la evolución del costo laboral de los funcionarios se 
 
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y el costo laboral expresado en millones de pesos y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. Hay una línea que muestra un punto por cada mes de los años mencionados, representando cada punto el monto gastado en cada mes. La línea representa el costo laboral de los funcionarios políticos, la cual aparentemente crece de manera exponencial, comenzando en de la ordenada al origen y superando los 1000 millones en el punto correspondiente a diciembre de 2022.
 Comparativo %>% 
   ggplot(aes(x = periodo_fecha)) +
   geom_line(aes(y = suma_costo_laboral_Autoridades, color = "Costo laboral funcionarios")) + 
@@ -259,6 +263,7 @@ En el período bajo análisis ha habido una inflación acumulada del 3338,3%, se
 Veamos que sucede si se deflactan los datos de la serie y se toma enero de 2009 como base 100.
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y el costo laboral de los funcionarios expresado en unidades, tomando 2009 como base 100, y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. Hay una línea que muestra un punto por cada mes de los años mencionados, representando cada punto el monto gastado en cada mes. La línea representa el costo laboral de los funcionarios políticos.
 deflactor %>% 
   ggplot(aes(x = periodo_fecha)) +
   geom_line(aes(y = cla_deflactado_base_100, color = "Costo laboral deflactado")) + 
@@ -284,6 +289,7 @@ Veamos si sucede lo mismo con los empleados en general si eliminamos el factor d
 
 
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y el costo laboral de la totalidad de los empleados públicos expresado en unidades, tomando 2009 como base 100, y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. Hay una línea que muestra un punto por cada mes de los años mencionados, representando cada punto el monto gastado en cada mes. La línea representa el costo laboral de la totalidad de los empleados.
 deflactor %>% 
   ggplot(aes(x = periodo_fecha)) +
   geom_line(aes(y = clt_deflactado_base_100, color = "Costo laboral deflactado")) + 
@@ -310,6 +316,7 @@ cor(deflactor$puestos_total, deflactor$clt_deflactado_base_100)
  Para terminar, analizaremos qué impacto tiene realmente el costo laboral de los funcionarios en el costo laboral del total de empleados. 
  
 ```{r}
+#Fig.alt Este gráfico de lineas y puntos presenta dos ejes, en el Y el costo laboral de los funcionarios como % del costo laboral de la totalidad de los empleados y en el X los meses enero de 2009 a diciembre de 2022, con breaks anuales. Hay una línea que muestra un punto por cada mes de los años mencionados, representando cada punto el % del costo laboral de los funcionarios. La línea representa el costo laboral de los funcionarios como % del total.
 Comparativo %>% 
     ggplot(aes(periodo_fecha, proporcion)) +
   geom_line(aes(y= proporcion, color = "Impacto % de Funcionarios")) + 
