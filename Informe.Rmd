@@ -16,20 +16,21 @@ library(lubridate)
 ```
 
 ```{r}
+#Leemos los datos
 Nacion_2009_2011 <- read_delim("Data/Nacion/1_export-puestos_trabajo_2009_2011.csv", 
-    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
     trim_ws = TRUE)
 
 Nacion_2012_2015 <- read_delim("Data/Nacion/2_export-puestos_trabajo_2012_2015.csv", 
-    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
     trim_ws = TRUE)
 
 Nacion_2016_2019 <- read_delim("Data/Nacion/3_export-puestos_trabajo_2016_2019.csv", 
-    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
     trim_ws = TRUE)
 
 Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.csv", 
-    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
     trim_ws = TRUE)
 
 Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
@@ -43,35 +44,92 @@ Inflacion <- read_delim("Data/inflacioneta.csv",
 ```{r}
 #Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. No nos pareció tan grave.
 Nacion_2009_2022 <- Nacion_2009_2022 %>% 
-  filter(!suma_costo_laboral > 2.246033e+14)
-```
-```{r}
-#Cómo detectamos el error:
-Nacion_2009_2022_error <- Nacion_2009_2022 %>% 
-  filter(!suma_costo_laboral > 2.246033e+14) %>% 
-  mutate(clt_promedio = suma_costo_laboral /puestos_de_trabajo)
-Nacion_2009_2022_error %>% 
-  summarize(sum(suma_costo_laboral / sum(puestos_de_trabajo)))
-# El costo laboral promedio por persona del período 2009-2022 es de más de 8 millones de pesos y esa definitivamente no es la realidad. Todo el análisis que hacemos más abajo está hecho en base a estos datos erróneos. No sabemos qué actitud tomar sinceramente.
+  filter(!suma_costo_laboral > 2.246032e+13)
 ```
 
-# **Introducción**
-
-Al momento de la producción de este trabajo nos encontramos atravesando el proceso electoral para la elección del cargo de Presidente de la Argentina y demás cargos legislativos. Uno de los ejes de campaña de algunos candidatos gira alrededor del rol del Estado y del empleo público. Se discute, entre otras cosas, que hay una canttdad enorme de empleados públicos, que el Estado es un refugio para los políticos y que el gasto que estos últimos generan es demasiado alto. En este trabajo nos proponemos analizar cómo se comporta el crecimiento del empleo en general y el de los cargos políticos políticos en particular para responder algunas preguntas tales como:\
-¿Cuánto ha crecido el empleo público? ¿Cuánto ha crecido la planta de funcionarios políticos? ¿Cuánto le ha costado al Estado "mantener" a los empleados públicos y a los funcionarios políticos a lo largo del tiempo? Para dar respuesta a estas preguntas, trabajamos con datos obtenidos de la BIEP (Base integrada de Empleo Público) tomando todos los períodos disponibles desde 2009 a 2022. A los efectos de definir a los funcionarios políticos, incluimos en ellos tanto a las autoridades superiores, es decir Ministros, Secretarios y Subsecretarios, así como también los cargos extraescalafonarios, los cuales son cargos que son creados por Decreto o norma de rango superior para atender fines específicos (tales como auditores internos, directores o presidentes de diversos organismos, etc). Esto deja fuera los cargos de alta dirección pública tales como Directores Generales y Nacionales, Directores Simples, Coordinadores, etc.
-
 ```{r}
+#Corregimos el campo periodo_fecha
 Nacion_2009_2022 <- Nacion_2009_2022 %>% 
   mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+#Preparamos los datos de cantidad de funcionarios
 Autoridades_Superiores_Q <- Nacion_2009_2022 %>% 
   filter(N_ESCA_LUE %in% c("100", "101")) %>% 
   group_by(periodo_fecha) %>% 
   summarise(puestos_AS = sum(puestos_de_trabajo))
+#Preparamos los datos de cantidad de empleados
 Empleados_Q <- Nacion_2009_2022 %>% 
   mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
   group_by(periodo_fecha) %>% 
   summarise(puestos_total = sum(puestos_de_trabajo)) 
 ```
+
+```{r}
+#Preparamos los datos de salario bruto para funcionarios
+Autoridades_Superiores_Salario_Bruto <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_salario_bruto_Autoridades = sum(suma_salario_bruto))
+#Preparamos los datos de salario bruto para empleados
+Salario_Bruto_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(salario_bruto_total = sum(suma_salario_bruto))
+#Si bien no utilizamos estos datos en este trabajo, pueden ser utiles más adelante
+```
+
+
+```{r}
+#Preparamos los datos de costo laboral para funcionarios
+Autoridades_Superiores_Costo_Laboral <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_costo_laboral_Autoridades = sum(suma_costo_laboral))
+#Preparamos los datos de costo laboral para empleados
+Costo_Laboral_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(costo_laboral_total = sum(suma_costo_laboral))
+```
+
+```{r}
+#Unimos los datos para tenerlos en un mismo set y poder plotearlos fácilmente
+Comparativo <- inner_join(Costo_Laboral_Total, Autoridades_Superiores_Costo_Laboral, by = "periodo_fecha") %>% 
+  mutate(proporcion = round(suma_costo_laboral_Autoridades / costo_laboral_total * 100, 2))
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Q)
+Comparativo <- left_join(Comparativo, Empleados_Q)
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Salario_Bruto)
+Comparativo <- left_join(Comparativo, Salario_Bruto_Total)
+#Agregamos los promedios de costo laboral y salario bruto para verificar que los valores obtenidos guarden cierta razonabilidad
+Comparativo <- Comparativo %>% 
+  mutate(promedio_clt = costo_laboral_total / puestos_total) %>% 
+  mutate(promedio_cla = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(promedio_sbt = salario_bruto_total / puestos_total) %>% 
+  mutate(promedio_sba = suma_salario_bruto_Autoridades / puestos_AS)
+
+```
+
+```{r}
+#Preparamos los datos para quitar el factor de la inflación del período en análisis
+Inflacion <- Inflacion %>%
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+deflactor <- inner_join(Comparativo, Inflacion, by = "periodo_fecha")
+deflactor <- deflactor %>% 
+  mutate(clt_deflactado = costo_laboral_total / inflacion_acumulada) %>% 
+  mutate(cla_deflactado = suma_costo_laboral_Autoridades / inflacion_acumulada) 
+deflactor <- deflactor %>% 
+  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 7819168) %>% 
+  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 1735003090) %>% 
+  mutate(cla_promedio_base_100 = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(clt_promedio = costo_laboral_total / puestos_total)
+```
+
+# **Introducción**
+
+Al momento de la producción de este trabajo nos encontramos atravesando el proceso electoral para la elección del cargo de Presidente de la Argentina y demás cargos legislativos. Uno de los ejes de campaña de algunos candidatos gira alrededor del rol del Estado y del empleo público. Se discute, entre otras cosas, que hay una cantidad enorme de empleados públicos, que el Estado es un refugio para los políticos y que el gasto que estos últimos generan es demasiado alto. En este trabajo nos proponemos analizar cómo se comporta el crecimiento del empleo en general y el de los cargos políticos políticos en particular para responder algunas preguntas tales como:
+¿Cómo ha crecido el empleo público? 
+¿Cómo ha crecido la planta de funcionarios políticos? 
+¿Cuánto le ha costado al Estado "mantener" a los empleados públicos y a los funcionarios políticos a lo largo del tiempo? 
+Para dar respuesta a estas preguntas, trabajaremos con datos obtenidos de la [BIEP](https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo-publico/biep/informes-estadisticos) (Base integrada de Empleo Público) tomando todos los períodos disponibles desde 2009 a 2022. A los efectos de definir a los funcionarios políticos, incluimos en ellos tanto a las autoridades superiores, es decir Ministros, Secretarios y Subsecretarios, así como también los cargos extraescalafonarios, los cuales son cargos que son creados por Decreto o norma de rango superior para atender fines específicos (tales como auditores internos, directores o presidentes de diversos organismos, etc). Esto deja fuera los cargos de alta dirección pública tales como Directores Generales y Nacionales, Directores Simples, Coordinadores, etc.
 
 ## **Evolución del empleo público** 
 
@@ -81,18 +139,17 @@ En el siguiente gráfico analizaremos la evolución de la cantidad de funcionari
 
 ```{r}
 Autoridades_Superiores_Q %>% 
-    ggplot(aes(periodo_fecha, puestos)) +
+  ggplot(aes(periodo_fecha, puestos_AS)) +
   geom_line() + 
   geom_point() +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   geom_smooth(method = "gam") +
   labs(title = "Evolución de Cantidad de Funcionarios 2009 - 2022") +
-  theme(legend.position = "bottom") +
   ylab("Cantidad de Funcionarios") +
   xlab("Año")
 ```
 
-Como puede verse, el mismo ha tendido a aumentar sostenidamente entre 2009 y 2018, luego de lo cual se revierte la tendencia. Sin embargo, existen algunos hitos que no responden a la tendencia general.
+Como puede verse, el mismo ha tendido a aumentar sostenidamente entre 2009 y 2018, luego de lo cual se revierte la tendencia y comienza a disminuir. Hacia el final del período analizado, en julio de 2020, la cantidad retoma la tendencia al aumento. Sin embargo, existen algunos hitos que no responden a la tendencia general.
 
 ### **Disminuciones bruscas de funcionarios** 
 
@@ -104,11 +161,13 @@ Puede notarse que existen puntos en los cuales se produce una brusca disminució
 
 -   enero de 2016 (pasa de 796 a 708, para recuperarse en el siguiente mes alcanzando 752) - marzo de 2018 (pasa de 915 a 802 y continúa su disminución el siguiente mes alcanzando 743, para luego estabilizarse en valores similares a los de 2014) .
 
--   enero de 2020 (pasa de 781 a 661, para recuperarse en el mes de mayo alcanzando 767) - junio/julio de 2020 (pasa de 767 en mayo a 677 en julio, luego de lo cual continúa creciendo gradualmente).
+-   enero de 2020 (pasa de 781 a 661, para recuperarse en el mes de mayo alcanzando 767)
 
-Nos gustaría esbozar algunas hipótesis para estos comportamientos, las cuales no estarán sujetas a corroboración en el presente trabajo.
+- junio/julio de 2020 (pasa de 767 en mayo a 677 en julio, luego de lo cual continúa creciendo gradualmente).
 
-En principio, durante los cambios de gestión como consecuencia de resultados electorales o de "relanzamientos" de gestión suelen producirse dos fenómenos simultáneos. Por un lado se producen cambios en la estructura de gobierno que impacta en la cantidad de cargos y por otro se produce un recambio de funcionarios políticos. Ambos fenómenos se producen de diferentes maneras. En el caso de la cantidad de cargos, son impactados por la modificación de las normas que regulan la estructura u organigrama de los Ministerios. En el caso de los funcionarios políticos, los cambios requieren la aceptación de la renuncia de los salientes y la tramitación de los nuevos nombramientos. Estos cambios, en una estructura burocrática como la estatal, suelen llevar un tiempo considerable. Por lo tanto, teniendo en cuenta que en los meses de diciembre de años impares asumen las autoridades electas producto de las elecciones generales que suelen producirse en el mes de octubre, es razonable asumir que los valores de diciembre de 2009, enero de 2016 y enero 2020 responden cambios de gestión como consecuencia de resultados electorales. En el caso de marzo de 2018, revisando recortes periodísticos tales como [este](https://www.infobae.com/politica/2018/03/11/achique-del-estado-hasta-el-momento-el-recorte-de-cargos-politicos-genera-mas-dudas-que-certezas/). Volveremos en breve a este punto. Restaría verificar a qué responden los hitos de noviembre de 2012 y de junio/julio de 2020, pero que no realizaremos en el marco de este trabajo.
+Nos gustaría esbozar algunas hipótesis para estos comportamientos, las cuales no estarán sujetas a corroboración en el presente trabajo, pero que pueden conformar un línea a indagar en futuros análisis.
+
+En principio, durante los cambios de gestión como consecuencia de resultados electorales o de "relanzamientos" de gestión suelen producirse dos fenómenos simultáneos. Por un lado se producen cambios en la estructura de gobierno, lo cual produce un impacto en la cantidad de cargos y por otro se produce un recambio de funcionarios políticos. Ambos fenómenos se producen de diferentes maneras. En el caso de la cantidad de cargos, son impactados por la modificación de las normas que regulan la estructura u organigrama de los Ministerios. En el caso de los funcionarios políticos, los cambios requieren la aceptación de la renuncia de los salientes y la tramitación de los nuevos nombramientos. Estos cambios, en una estructura burocrática como la estatal, suelen llevar un tiempo considerable. Por lo tanto, teniendo en cuenta que cada 4 años en los meses de diciembre de años impares asumen las autoridades electas producto de las elecciones generales, es razonable asumir que los valores de diciembre de 2009, enero de 2016 y enero 2020 responden a cambios de gestión como consecuencia de resultados electorales. En el caso de marzo de 2018, revisando recortes periodísticos tales como [este](https://www.infobae.com/politica/2018/03/11/achique-del-estado-hasta-el-momento-el-recorte-de-cargos-politicos-genera-mas-dudas-que-certezas/). Podemos ver que podría tratarse de un relanzamiento de la gestión. Volveremos en breve a este punto. Restaría analizar a qué responden los hitos de noviembre de 2012 y de junio/julio de 2020 pero, dado el alcance de este trabajo, no lo profundizaremos aquí.
 
 ### **Evolución de la cantidad de funcionarios** 
 
@@ -117,7 +176,7 @@ Durante el período comprendido entre enero de 2009 y mayo de 2016 se puede obse
 ### **En resumen** 
 
 Durante el período analizado puede observarse que entre enero de 2009 y mayo de 2016 se produjo un incremento estable y sostenido de los funcionarios políticos, tendencia que se acentúa a partir de entonces hasta alzanzar el máximo valor en enero de 2018 y que se revierte bruscamente en marzo de ese año, volviendo a valores similares a los de 2014. Luego de ello se produce una tendencia que se revierte gradualmente en julio de 2020 y se acelera a partir de julio de 2022, pero sin superar los maximos alcanzados entre mayo de 2016 y marzo de 2018.
-Resta ver, ahora, si el comportamiento de la evolución de estos cargos es acompañado por la evolución del empleo en general.
+Resta ver, ahora, el comportamiento de la evolución del empleo en general.
 
 ## **Empleo en general**
 
@@ -130,55 +189,34 @@ Empleados_Q %>%
   scale_y_continuous(labels = scales::comma_format()) +
   geom_smooth(method ="gam") +
   labs(title = "Evolución de Cantidad de Empleados 2009 - 2022") +
-  theme(legend.position = "bottom") +
   ylab("Cantidad de Empleados") +
   xlab("Año")
 ```
 
-Como puede observarse, en líneas generales el empleo en general ha tendido a crecer prácticamente durante todo el período, salvo durante noviembre de 2016 hasta enero de 2019, momento en el que se retoma la tendencia al crecimiento. Sin embargo, debe prestarse atención a algunos hitos.
+Como puede observarse, en líneas generales el empleo en general ha tendido a crecer prácticamente durante todo el período, con un incremento del ritmo de crecimiento ciertamente significativo en mayo de 2010 y marzo de 2015. Sin embargo la cantidad de empleados encuentra un período de decrecimiento a partir de noviembre de 2016 y hasta enero de 2019. A partir de ese momento se retoma la tendencia al crecimiento. 
+Además de esta descripción general, queremos llamar la atención sobre algunos hitos.
 
 ### Variaciones bruscas de empleados
 
 -   enero a marzo de 2009 encuentra valores de alrededor de 250K de empleados, muy por debajo de la serie que siempre supera los 300K.
 -   diciembre de 2010: pasa de 357702 a 322563, para recuperarse en el siguiente mes alcanzando 366914.
 -   agosto y octubre de 2019: hay un salto aislado de alrededor de 30000 empleados, cuando el nivel para los períodos previos y posteriores es de cerca de 470000.
--   septiembre y noviembre de 2021: hay un salto aislado de alrededor de 25000 empleados, cuando el nivel para los períodos previos y posteriores es de cerca de 490000. Estas variaciones pueden deberse a algún tipo de error o cambio en el criterio de carga de datos de la BIEP, pero para encontrar la causa con precisión deben explorarse los datos con mayor profundidad. Para el análisis del presente trabajo se tomarán como datos anómalos y no se tendrán en cuenta para el análisis.
+-   septiembre y noviembre de 2021: hay un salto aislado de alrededor de 25000 empleados, cuando el nivel para los períodos previos y posteriores es de cerca de 490000. 
+Estas variaciones pueden deberse a deficiencias en la remisión de los datos, tal como se consigna en el sitio web donde se publicaron estos sets de datos. Allí se advierte que los datos publicados están completos desde Marzo 2015 y que en algunos períodos se pueden observar faltantes de datos de Organismos/Entidades dado que depende de la remisión de datos de las mismas a los sistemas transversales. 
 
 ### **Evolución de la cantidad de empleados**
 
+De lo dicho hasta ahora se desprende que en el período bajo análisis, el aumento y la disminución de los empleados y de los funcionarios suelen ir de la mano. Esto se observa claramaente hasta noviembre de 2016. A partir de ese momento la cantidad de funcionarios continúa aumentando, mientras que la de empleados comienza a disminuir. Como vimos antes, la disminución de funcionarios se produjo más tarde, en marzo de 2018, que alcanza un mínimo de 743 personas en abril de 2018 y permanece en valores de entre 750 y 800 hasta diciembre de 2019. Una vez pasado el período transicional del cambio de gobierno, en julio de 2020, la cantidad de funcionarios vuelve a asumir la tendencia creciente. Esta tendencia en el caso del empleo en general se produce antes, en enero de 2019. 
+Mas allá de estos variaciones en los momentos en los que se producen los aumentos y disminuciones, el hecho de que ambas variables tienden a comportarse de manera similar puede verificarse fácilmente correlacionando ambas.
+
+```{r}
+cor(Comparativo$puestos_AS, Comparativo$puestos_total)
+```
+Efectivamente, el índice de correlación de 0,8 es lo suficientemente alto como para afirmar que los incrementos y decrementos de ambas variables suelen ir de la mano.
+
 # Costo laboral
 
-```{r}
-Autoridades_Superiores_Costo_Laboral <- Nacion_2009_2022 %>% 
-  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
-  group_by(periodo_fecha) %>% 
-  summarise(suma_costo_laboral_Autoridades = sum(suma_costo_laboral))
-Costo_Laboral_Total <- Nacion_2009_2022 %>% 
-  group_by(periodo_fecha) %>% 
-  summarise(costo_laboral_total = sum(suma_costo_laboral))
-```
-
-```{r}
-Comparativo <- inner_join(Costo_Laboral_Total, Autoridades_Superiores_Costo_Laboral, by = "periodo_fecha") %>% 
-  mutate(proporcion = round(suma_costo_laboral_Autoridades / costo_laboral_total * 100, 2))
-Comparativo <- left_join(Comparativo, Autoridades_Superiores_Q)
-Comparativo <- left_join(Comparativo, Empleados_Q)
-
-```
-
-```{r}
-Inflacion <- Inflacion %>%
-  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
-deflactor <- inner_join(Comparativo, Inflacion, by = "periodo_fecha")
-deflactor <- deflactor %>% 
-  mutate(clt_deflactado = costo_laboral_total / inflacion_acumulada) %>% 
-  mutate(cla_deflactado = suma_costo_laboral_Autoridades / inflacion_acumulada) 
-deflactor <- deflactor %>% 
-  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 779578029) %>% 
-  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 172981400000) %>% 
-  mutate(cla_promedio_base_100 = suma_costo_laboral_Autoridades / puestos_AS) %>% 
-  mutate(clt_promedio = costo_laboral_total / puestos_total)
-```
+Ya hemos analizado la evolución de la cantidad de empleados y funcionarios. Veamos ahora qué sucede con el gasto asociado a ambos conjuntos analizando el costo laboral de ambos. El costo laboral es una variable que, además de incluir el salario bruto de los agentes, incluye también las cargas patronales y es una medida del gasto total que conlleva el salario de un empleado. Consideramos que una primera aproximación a esta cuestión puede ser la comparación de la evolución del empleo en general y de los funcionarios.
 
 ```{r}
 ggplot(Comparativo, aes(x = periodo_fecha)) +
@@ -186,15 +224,19 @@ ggplot(Comparativo, aes(x = periodo_fecha)) +
   geom_line(aes(y = suma_costo_laboral_Autoridades, color = "Costo Laboral Funcionarios")) +
   geom_point(aes(y = costo_laboral_total, color = "Costo Laboral Total")) +
   geom_point(aes(y = suma_costo_laboral_Autoridades, color = "Costo Laboral Funcionarios")) +
-  scale_y_continuous(labels = scales::comma_format(scale = 1e-6, suffix = "M"),
-                     limits = c(0, NA)) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6), limits = c(0, NA)) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
-  labs(title = "Comparativo Costo Laboral Funcionarios y Costo Laboral Total") +
-  ylab("Costo Laboral") +
+  labs(title = "Evolución Costo Laboral Funcionarios y Costo Laboral Total") +
+  ylab("Millones de $") +
   xlab("Año") +
   labs(color = "Costo Laboral") +
   theme(legend.position = "bottom")
 ```
+
+Al parecer, nos encontramos con que hay un crecimiento exponencial del costo laboral total que supera en el 2023 los 300.000 millones de pesos. Al mismo tiempo, se mantiene el costo laboral de los funcionarios cerca del 0 durante toda la serie. 
+Pueden verse periódicamente algunos saltos, todos en junio y diciembre de cada año. Esto se debe a que en dichos períodos se abona el medio aguinaldo, que equivale a una suma extra de la mitad del sueldo de mayor valor del semestre. 
+Decíamos que al parecer la evolución del costo laboral de los funcionarios se mantiene constante, sin embargo, en este caso, las apariencias engañan:
+
 
 ```{r}
 Comparativo %>% 
@@ -202,14 +244,19 @@ Comparativo %>%
   geom_line(aes(y = suma_costo_laboral_Autoridades, color = "Costo laboral funcionarios")) + 
   geom_point(aes(y = suma_costo_laboral_Autoridades, color = "Costo laboral funcionarios")) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
-  scale_y_continuous(labels = scales::comma_format(scale = 1e-6, suffix = "M"), breaks = c(0, 25000000000, 50000000000, 75000000000, 100000000000, 125000000000)) +
+  scale_y_continuous(breaks = c(0, 250000000, 500000000, 750000000, 1000000000, 125000000), labels = scales::comma_format(scale = 1e-6)) +
   geom_smooth(aes(y = suma_costo_laboral_Autoridades)) +
-  labs(title = "Costo Laboral Funcionarios") +
-  ylab("Costo Laboral") +
+  labs(title = "Evolución Costo Laboral Funcionarios") +
+  ylab("Millones de $") +
   xlab("Año") +
   labs(color = "Costo Laboral") +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 ```
+
+Si vemos la evolución del costo laboral de funcionarios por separado, el comportamiento es casi idéntico al de los empleados. Sólo cambia la escala, que se ubica en el rango de los cientos de millones de pesos, superando los 1000 recién con el aguinaldo de diciembre de 2022.
+Ahora bien, ¿cómo es posible que el crecimiento del costo laboral en ambos casos tenga un incremento exponencial y que no se vea acompañado por el crecimiento de la cantidad de empleados? La respuesta la encontramos en la aceleración de la tasa de inflación. 
+En el período bajo análisis ha habido una inflación acumulada del 3338,3%, según elaboración propia en base a los datos de inflación mensual (variación en %) del [BCRA](https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables_datos.asp). 
+Veamos que sucede si se deflactan los datos de la serie y se toma enero de 2009 como base 100.
 
 ```{r}
 deflactor %>% 
@@ -219,28 +266,22 @@ deflactor %>%
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(breaks = c(0, 250, 500, 750)) +
   geom_smooth(aes(y = cla_deflactado_base_100)) +
-  labs(title = "Costo Laboral Funcionarios", subtitle = "2009 = 100") +
+  labs(title = "Evolución Costo Laboral Funcionarios", subtitle = "Ajustado por inflación con base 2009 = 100") +
   ylab("Costo Laboral") +
   xlab("Año") +
   labs(color = "Costo Laboral") +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 ```
 
+Lo que vemos aquí es que el costo laboral de los funcionarios aumenta pronunciadamente hasta el año 2016, luego se ameseta en 2016 y 2018, para disminuir también de forma pronunciada hasta 2021. A partir de ese año comienza a aumentar levemente. El comportamiento parece ser bastante similar al de la evolución de la cantidad de funcionarios. Efectivamente, utilizando el coeficiente de correlación entre ambas variables:
+
 ```{r}
-Comparativo %>% 
-    ggplot(aes(periodo_fecha, costo_laboral_total)) +
-  geom_line(aes(y = costo_laboral_total, color = "Costo laboral total")) + 
-  geom_point(aes(y = costo_laboral_total, color = "Costo laboral total")) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
-  scale_y_continuous(labels = scales::comma_format(scale = 1e-6, suffix = "M"), 
-                     breaks = c(0, 5000000000000, 10000000000000, 15000000000000, 20000000000000, 25000000000000, 30000000000000)) +
-  geom_smooth(aes(y = costo_laboral_total)) +
-  labs(title = "Costo Laboral Total") +
-  ylab("Costo Laboral") +
-  xlab("Año") +
-  labs(color = "Costo Laboral") +
-  theme(legend.position = "bottom")
+cor(deflactor$puestos_AS, deflactor$cla_deflactado_base_100)
 ```
+Estas variables correlacionan aún más que la cantidad de funcionarios y la cantidad de empleados. Esto era esperable, dado que quitando la influencia de la inflación, resulta consistente que el aumento o disminución de la cantidad de personas acompañe el aumento/disminución del costo laboral.
+
+Veamos si sucede lo mismo con los empleados en general si eliminamos el factor de la inflación.
+
 
 ```{r}
 deflactor %>% 
@@ -250,13 +291,24 @@ deflactor %>%
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(breaks = c(0, 250, 500, 750)) +
   geom_smooth(aes(y = clt_deflactado_base_100)) +
-  labs(title = "Costo Laboral Deflactado", subtitle = "2009 = 100") +
+  labs(title = "Costo Laboral Deflactado - Total Empleados", subtitle = "Ajustado por inflación con base 2009 = 100") +
   ylab("Costo Laboral") +
   xlab("Año") +
   labs(color = "Costo Laboral") +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 ```
 
+Podemos observar un aumento sostenido hasta el año 2016, un amesetamiento de 2016 a 2018, y un suave ritmo decreciente hasta 2021. A partir de 2022 se aprecia un leve incremento del costo laboral.
+En este caso, el índice de correlación entre el costo laboral y la cantidad de personas es:
+
+```{r}
+cor(deflactor$puestos_total, deflactor$clt_deflactado_base_100)
+```
+ 
+ Un valor alto, pero menor que el que surge en el caso de los funcionarios.
+ 
+ Para terminar, analizaremos qué impacto tiene realmente el costo laboral de los funcionarios en el costo laboral del total de empleados. 
+ 
 ```{r}
 Comparativo %>% 
     ggplot(aes(periodo_fecha, proporcion)) +
@@ -264,9 +316,26 @@ Comparativo %>%
   geom_point(aes(y= proporcion, color = "Impacto % de Funcionarios")) +
   scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   geom_smooth(aes(y= proporcion)) +
-  labs(title = "Variación del Costo Laboral de los Funcionarios como Porcentaje del Total") +
+  labs(title = "Evolución del Costo Laboral de los Funcionarios como Porcentaje del Total") +
   ylab("% del Costo Laboral Total") +
   xlab("Año") +
   labs(color = "Costo Laboral") +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 ```
+
+Observando la evolución del costo laboral de los funcionarios como porcentaje del costo laboral total, resulta notable que durante todo el período se ubica entre el 0,35% y el 0,65%. Es decir, el impacto del costo de los funcionarios en el costo laboral total es insignificante. 
+Al mismo tiempo, podemos notar que su evolución lejos está de mantenerse estable a lo largo del tiempo. La misma va creciendo levemente hasta 2015, para amesetarse entre 2015 y mediados de 2017 y, finalmente, caer bruscamente en 2021. Luego de ello se recupera levemente a mediados de 2022. 
+
+
+Luego de todo lo expuesto estamos en condiciones de esbozar algunas respuestas a las preguntas del comienzo:
+
+¿Cómo ha crecido el empleo público?
+El empleo público ha crecido sostenidamente desde enero de 2009 hasta noviembre de 2016, atravesando gestiones de diferentes signos políticos. Luego de alcanzar un pico en la gestión de Mauricio Macri, es promediando la mitad de su mandato que comienza a disminuir la cantidad de empleados, tendencia que se revierte hacia el final de su mandato. Por último, durante la gestión de Alberto Fernández se observa una continuidad en el ritmo de aumento. 
+
+¿Cómo ha crecido la planta de funcionarios políticos? 
+En este caso hemos podido verificar un aumento sostenido desde 2009, que acompaña el aumento de empleados en general. También vimos que durante la gestión de Mauricio Macri la cantidad de funcionarios incrementó el ritmo de aumento, alcanzando el máximo de la serie durante su gestión. Luego de una crisis económica y política esa gestión disminuyó la cantidad de cargos abruptamente a valores de 2014. La gestión de Alberto Fernández incrementó luego la cantidad de cargos y los llevó a valores similares a los de 2015. 
+
+¿Cuánto le ha costado al Estado "mantener" a los empleados públicos y a los funcionarios políticos a lo largo del tiempo?
+El costo de los funcionarios varía, como es de esperar, de acuerdo a la cantidad de funcionarios existentes. Sin embargo, durante el período analizado, nunca ha superado el 0,65% del total del gasto, lo que permite concluir que dicho gasto no resulta significativo en relación al gasto total.
+
+
