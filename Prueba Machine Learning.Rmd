@@ -1,0 +1,320 @@
+---
+title: "Prueba Machine Learning"
+author: "Gabriel Diner"
+date: "2023-08-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+library(lubridate)
+library(fpp2)
+
+```
+
+```{r}
+#Leemos los datos
+Nacion_2009_2011 <- read_delim("Data/Nacion/1_export-puestos_trabajo_2009_2011.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2012_2015 <- read_delim("Data/Nacion/2_export-puestos_trabajo_2012_2015.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2016_2019 <- read_delim("Data/Nacion/3_export-puestos_trabajo_2016_2019.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
+
+Inflacion <- read_delim("Data/inflacioneta.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+```
+
+
+```{r}
+#Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. 
+Nacion_2009_2022 <- Nacion_2009_2022 %>% 
+  filter(!suma_costo_laboral > 2.246032e+13)
+```
+
+```{r}
+#Damos formato de fecha al campo periodo_fecha
+Nacion_2009_2022 <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+#Preparamos los datos de cantidad de funcionarios
+Autoridades_Superiores_Q <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(puestos_AS = sum(puestos_de_trabajo))
+#Preparamos los datos de cantidad de empleados
+Empleados_Q <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(puestos_total = sum(puestos_de_trabajo)) 
+```
+
+```{r}
+#Preparamos los datos de salario bruto para funcionarios
+Autoridades_Superiores_Salario_Bruto <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_salario_bruto_Autoridades = sum(suma_salario_bruto))
+#Preparamos los datos de salario bruto para empleados
+Salario_Bruto_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(salario_bruto_total = sum(suma_salario_bruto))
+#Si bien no utilizamos estos datos en este trabajo, pueden ser utiles más adelante
+```
+
+
+```{r}
+#Preparamos los datos de costo laboral para funcionarios
+Autoridades_Superiores_Costo_Laboral <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_costo_laboral_Autoridades = sum(suma_costo_laboral))
+#Preparamos los datos de costo laboral para empleados
+Costo_Laboral_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(costo_laboral_total = sum(suma_costo_laboral))
+```
+
+```{r}
+#Unimos los datos para tenerlos en un mismo set y poder plotearlos fácilmente
+Comparativo <- inner_join(Costo_Laboral_Total, Autoridades_Superiores_Costo_Laboral, by = "periodo_fecha") %>% 
+  mutate(proporcion = round(suma_costo_laboral_Autoridades / costo_laboral_total * 100, 2))
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Q)
+Comparativo <- left_join(Comparativo, Empleados_Q)
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Salario_Bruto)
+Comparativo <- left_join(Comparativo, Salario_Bruto_Total)
+#Agregamos los promedios de costo laboral y salario bruto para verificar que los valores obtenidos guarden cierta razonabilidad
+Comparativo <- Comparativo %>% 
+  mutate(promedio_clt = costo_laboral_total / puestos_total) %>% 
+  mutate(promedio_cla = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(promedio_sbt = salario_bruto_total / puestos_total) %>% 
+  mutate(promedio_sba = suma_salario_bruto_Autoridades / puestos_AS)
+
+```
+
+```{r}
+#Preparamos los datos para quitar el factor de la inflación del período en análisis
+Inflacion <- Inflacion %>%
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+deflactor <- inner_join(Comparativo, Inflacion, by = "periodo_fecha")
+deflactor <- deflactor %>% 
+  mutate(clt_deflactado = costo_laboral_total / inflacion_acumulada) %>% 
+  mutate(cla_deflactado = suma_costo_laboral_Autoridades / inflacion_acumulada) 
+deflactor <- deflactor %>% 
+  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 7819168) %>% 
+  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 1735003090) %>% 
+  mutate(cla_promedio_base_100 = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(clt_promedio = costo_laboral_total / puestos_total)
+```
+
+```{r}
+data_serie <- ts(deflactor$clt_deflactado, frequency = 12, start=2009)
+```
+
+```{r}
+autoplot(data_serie)+
+  labs(title = "Evolución del salario bruto deflactado - 2009/2022",       
+       x = "Año",
+       y = "Salario Bruto Deflactado - millones de pesos") +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+    theme_bw()
+```
+```{r}
+fit <- decompose(data_serie, type='additive')
+
+autoplot(fit)+
+  labs(title = "Descomposición",                   
+       x = "Año",
+       y = "Salario Bruto Deflactado - millones de pesos") +
+    theme_bw() +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))
+```
+
+```{r}
+autoplot(data_serie, series="Evolución") + 
+    autolayer(trendcycle(fit), series="Tendencia") +
+    labs(title = "Evolución del salario bruto deflactado - 2009/2022",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") + 
+    theme_bw() +
+    scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 12))
+```
+
+```{r}
+ggseasonplot(data_serie) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+  labs(title = "Evolución del salario bruto deflactado - 2009/2022",
+      x = "Mes",
+      y = "Salario Bruto Deflactado - millones de pesos") 
+  #scale_x_discrete(breaks = c("jan" = "ene", "feb" = "feb", "mar" = "mar", "apr" = "abr", "may" = "may", "jun" = "jun", "jul" = "jul", "aug" = "ago", "sep" = "sep", "oct" = "oct", "nov" = "nov", "dic" = "dic"))
+```
+
+```{r}
+# elaborando el método
+m1 <- snaive(data_serie, h=36)
+
+# graficando el pronóstico
+autoplot(m1) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 15))+
+  labs(title = "Predicción estacional - Método Naive - 2023/2025",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") 
+```
+
+```{r}
+# verificando el ajuste del método
+autoplot(m1)+autolayer(fitted(m1), series="Ajuste") +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 15)) +
+  labs(title = "Predicción estacional con ajuste - Método Naive - 2023/2025",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+# verificando los residuales
+checkresiduals(m1)
+  
+```
+
+
+```{r}
+# elaborando la regresion
+regresion <- tslm(data_serie ~ trend + season)
+
+# elaborando el pronostico
+m2 <- forecast(regresion, h=36)
+
+# graficando el pronóstico
+autoplot(m2) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))  +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 15)) +
+  labs(title = "Predicción - Método Regresión Lineal - 2023/2025",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+# verificando los residuales
+checkresiduals(m2)
+```
+
+```{r}
+# elaborando el pronostico
+m3 <- hw(data_serie, h=36, seasonal = 'multiplicative')
+
+# graficando el pronóstico
+autoplot(m3) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+  labs(title = "Predicción - Método Holt-Winters multiplicativo - 2023/2025",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+# verificando el ajuste del método
+autoplot(m3) +
+  autolayer(fitted(m3), series="Ajuste") +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 15)) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5)) +
+   labs(title = "Predicción con ajuste - Método Holt-Winters multiplicativo - 2023/2025",
+      x = "Año",
+      y = "Salario Bruto Deflactado - millones de pesos") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+# verificando los residuales
+checkresiduals(m3)
+```
+
+```{r}
+# elaborando el modelo ARIMA
+modelo_arima <- auto.arima(data_serie)
+
+# elaborando el pronostico
+m4 <- forecast(modelo_arima, h=36)
+
+# graficando el pronóstico
+autoplot(m4) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))
+```
+
+```{r}
+# verificando el ajuste del método
+autoplot(m4) +
+  autolayer(fitted(m4), series="Ajuste") +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))
+```
+
+```{r}
+# verificando los residuales
+checkresiduals(m4)
+```
+
+```{r}
+# elaborando el modelo de red neuronal
+neural_network <- nnetar(data_serie)
+
+# elaborando el pronostico
+m5 <- forecast(neural_network, h=36)
+
+# graficando el pronóstico
+autoplot(m5) + 
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))
+```
+
+```{r}
+# verificando el ajuste del método
+autoplot(m5) + 
+  autolayer(fitted(m5), series="Ajuste") +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
+                     breaks = scales::breaks_pretty(n = 5))
+```
+
+```{r}
+# verificando los residuales
+checkresiduals(m5)
+```
+
+
+
+
+
+

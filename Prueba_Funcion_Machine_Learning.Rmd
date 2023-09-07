@@ -1,0 +1,239 @@
+---
+title: "Prueba Funcion Machine Learning"
+author: "Gabriel Diner y Silvina Pichetto"
+date: "2023-09-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+library(lubridate)
+library(fpp2)
+
+```
+
+```{r}
+#Leemos los datos
+Nacion_2009_2011 <- read_delim("Data/Nacion/1_export-puestos_trabajo_2009_2011.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2012_2015 <- read_delim("Data/Nacion/2_export-puestos_trabajo_2012_2015.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2016_2019 <- read_delim("Data/Nacion/3_export-puestos_trabajo_2016_2019.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252", decimal_mark = ","), 
+    trim_ws = TRUE)
+
+Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
+
+Inflacion <- read_delim("Data/inflacioneta.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
+    trim_ws = TRUE)
+```
+
+
+```{r}
+#Esta linea elimina valores ridículos que encontramos al inicio del trabajo, pero que estaban limitados a períodos y áreas de gobierno específicos. 
+Nacion_2009_2022 <- Nacion_2009_2022 %>% 
+  filter(!suma_costo_laboral > 2.246032e+13)
+```
+
+```{r}
+#Damos formato de fecha al campo periodo_fecha
+Nacion_2009_2022 <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+#Preparamos los datos de cantidad de funcionarios
+Autoridades_Superiores_Q <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(puestos_AS = sum(puestos_de_trabajo))
+#Preparamos los datos de cantidad de empleados
+Empleados_Q <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(puestos_total = sum(puestos_de_trabajo)) 
+```
+
+```{r}
+#Preparamos los datos de salario bruto para funcionarios
+Autoridades_Superiores_Salario_Bruto <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_salario_bruto_Autoridades = sum(suma_salario_bruto))
+#Preparamos los datos de salario bruto para empleados
+Salario_Bruto_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(salario_bruto_total = sum(suma_salario_bruto))
+#Si bien no utilizamos estos datos en este trabajo, pueden ser utiles más adelante
+```
+
+
+```{r}
+#Preparamos los datos de costo laboral para funcionarios
+Autoridades_Superiores_Costo_Laboral <- Nacion_2009_2022 %>% 
+  filter(N_ESCA_LUE %in% c("100", "101")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(suma_costo_laboral_Autoridades = sum(suma_costo_laboral))
+#Preparamos los datos de costo laboral para empleados
+Costo_Laboral_Total <- Nacion_2009_2022 %>% 
+  mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
+  group_by(periodo_fecha) %>% 
+  summarise(costo_laboral_total = sum(suma_costo_laboral))
+```
+
+```{r}
+#Unimos los datos para tenerlos en un mismo set y poder plotearlos fácilmente
+Comparativo <- inner_join(Costo_Laboral_Total, Autoridades_Superiores_Costo_Laboral, by = "periodo_fecha") %>% 
+  mutate(proporcion = round(suma_costo_laboral_Autoridades / costo_laboral_total * 100, 2))
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Q)
+Comparativo <- left_join(Comparativo, Empleados_Q)
+Comparativo <- left_join(Comparativo, Autoridades_Superiores_Salario_Bruto)
+Comparativo <- left_join(Comparativo, Salario_Bruto_Total)
+#Agregamos los promedios de costo laboral y salario bruto para verificar que los valores obtenidos guarden cierta razonabilidad
+Comparativo <- Comparativo %>% 
+  mutate(promedio_clt = costo_laboral_total / puestos_total) %>% 
+  mutate(promedio_cla = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(promedio_sbt = salario_bruto_total / puestos_total) %>% 
+  mutate(promedio_sba = suma_salario_bruto_Autoridades / puestos_AS)
+
+```
+
+```{r}
+#Preparamos los datos para quitar el factor de la inflación del período en análisis
+Inflacion <- Inflacion %>%
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+deflactor <- inner_join(Comparativo, Inflacion, by = "periodo_fecha")
+deflactor <- deflactor %>% 
+  mutate(clt_deflactado = costo_laboral_total / inflacion_acumulada) %>% 
+  mutate(cla_deflactado = suma_costo_laboral_Autoridades / inflacion_acumulada) 
+deflactor <- deflactor %>% 
+  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 7819168) %>% 
+  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 1735003090) %>% 
+  mutate(cla_promedio_base_100 = suma_costo_laboral_Autoridades / puestos_AS) %>% 
+  mutate(clt_promedio = costo_laboral_total / puestos_total)
+```
+
+```{r}
+# Creamos una función para pronosticar y plotear las diferente variables indicando la variable, columna y cantidad de meses (por defecto 36) a pronósticar usando los modelos snaive, regresión lineal, holt winters, ARIMA y neural network
+
+crear_y_plotear_pronosticos <- function(df, column_name, h = 36) {
+  # Chequeamos que la columna existe en el archivo
+  if (column_name %in% colnames(df)) {
+    # Creamos la serie temporal
+    data_serie <- ts(df[[column_name]], frequency = 12, start = 2009)
+    
+    # Ploteamos
+    ploteo_variable <- autoplot(data_serie) +
+          labs(title = paste("Evolución de ", column_name), 
+           x = "Año") +
+      theme_bw() +
+      scale_x_continuous(breaks = scales::breaks_pretty(n = 12))
+    
+    # Descomponemos la serie temporal
+    fit <- decompose(data_serie, type = 'additive')
+    
+    # Ploteamos
+    ploteo_descomposicion <- autoplot(fit) +
+      labs(title = paste("Descomposición de ", column_name),
+           x = "Año") +
+      theme_bw() +
+      scale_x_continuous(breaks = scales::breaks_pretty(n = 12))
+    
+    # Armamos el pronóstico naive
+    pronostico_naive <- snaive(data_serie, h = h)
+    
+    # Ploteamos
+    ploteo_naive <- autoplot(pronostico_naive) +
+      labs(title = paste("Pronostico Naive -", 2023, "/", 2023 + (h/12)), 
+           subtitle = paste(column_name),
+           x = "Año")
+    
+    # Armamos el pronóstico de regresión lineal
+    regresion <- tslm(data_serie ~ trend + season)
+    pronostico_regresion <- forecast(regresion, h = h)
+    
+    # Ploteamos
+    ploteo_regresion <- autoplot(pronostico_regresion) +
+      labs(title = paste("Pronóstico Regresión Lineal -", 2023, "/", 2023 + (h/12)),
+           subtitle = paste(column_name),
+           x = "Año")
+    
+    # Armamos el pronóstico Holt-Winters
+    pronostico_hw <- hw(data_serie, h = h, seasonal = 'multiplicative')
+    
+    # Ploteamos
+    ploteo_hw <- autoplot(pronostico_hw) +
+      labs(title = paste("Pronóstico Holt-Winters -", 2023, "/", 2023 + (h/12)),
+           subtitle = paste(column_name),
+           x = "Año")
+    
+    # Armamos el pronóstico ARIMA
+    modelo_arima <- auto.arima(data_serie)
+    pronostico_arima <- forecast(modelo_arima, h = h)
+    
+    # Ploteamos
+    ploteo_arima <- autoplot(pronostico_arima) +
+      labs(title = paste("Pronóstico ARIMA -", 2023, "/", 2023 + (h/12)),
+           subtitle = paste(column_name),
+           x = "Año")
+    
+    # Armamos el pronóstico neural network
+    neural_network <- nnetar(data_serie)
+    pronostico_nn <- forecast(neural_network, h = h)
+    
+    # Ploteamos
+    ploteo_nn <- autoplot(pronostico_nn) +
+      labs(title = paste("Pronóstico ARIMA -", 2023, "/", 2023 + (h/12)),
+           subtitle = paste(column_name),
+           x = "Año")
+    
+    # Hacemos los residuales para cada metodo
+    resid_naive <- checkresiduals(pronostico_naive)
+    resid_linear <- checkresiduals(pronostico_regresion)
+    resid_hw <- checkresiduals(pronostico_hw)
+    resid_arima <- checkresiduals(pronostico_arima)
+    resid_nn <- checkresiduals(pronostico_nn)
+    
+    # Para visualizar los ploteos por separado
+    return(list(
+      variable = ploteo_variable,
+      descomposicion = ploteo_descomposicion,
+      pronostico_naive = ploteo_naive,
+      pronostico_regresion = ploteo_regresion,
+      pronostico_hw = ploteo_hw,
+      pronostico_arima = ploteo_arima,
+      pronostico_nn = ploteo_nn,
+      residual_naive = resid_naive,
+      residual_linear = resid_linear,
+      residual_hw = resid_hw,
+      residual_arima = resid_arima,
+      residual_nn = resid_nn
+    ))
+  } else {
+    # Si la columna no existe:
+    stop(paste("La columna", column_name, "no existe en el dataframe."))
+  }
+}
+
+# Ejemplo de uso:
+# Crear_y_plotear_pronosticos(deflactor, "clt_deflactado", h = 24)
+
+```
+
+```{r}
+crear_y_plotear_pronosticos(deflactor, "proporcion", h = 72)
+```
+
+
