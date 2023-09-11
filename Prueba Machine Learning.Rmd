@@ -37,7 +37,7 @@ Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.c
 
 Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
 
-Inflacion <- read_delim("Data/inflacioneta.csv", 
+Inflacion <- read_delim("Data/inflacioneta_2015.csv", 
     delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
     trim_ws = TRUE)
 ```
@@ -52,7 +52,8 @@ Nacion_2009_2022 <- Nacion_2009_2022 %>%
 ```{r}
 #Damos formato de fecha al campo periodo_fecha
 Nacion_2009_2022 <- Nacion_2009_2022 %>% 
-  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y"))
+  mutate(periodo_fecha = as.Date(periodo_fecha, format = "%d/%m/%Y")) %>% 
+  filter(periodo_fecha > '2014-12-01')
 #Preparamos los datos de cantidad de funcionarios
 Autoridades_Superiores_Q <- Nacion_2009_2022 %>% 
   filter(N_ESCA_LUE %in% c("100", "101")) %>% 
@@ -60,6 +61,7 @@ Autoridades_Superiores_Q <- Nacion_2009_2022 %>%
   summarise(puestos_AS = sum(puestos_de_trabajo))
 #Preparamos los datos de cantidad de empleados
 Empleados_Q <- Nacion_2009_2022 %>% 
+  group_by(periodo_fecha) %>% 
   mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
   group_by(periodo_fecha) %>% 
   summarise(puestos_total = sum(puestos_de_trabajo)) 
@@ -76,7 +78,6 @@ Salario_Bruto_Total <- Nacion_2009_2022 %>%
   mutate(periodo_fecha = floor_date(periodo_fecha, unit = "month")) %>% 
   group_by(periodo_fecha) %>% 
   summarise(salario_bruto_total = sum(suma_salario_bruto))
-#Si bien no utilizamos estos datos en este trabajo, pueden ser utiles más adelante
 ```
 
 
@@ -119,19 +120,19 @@ deflactor <- deflactor %>%
   mutate(clt_deflactado = costo_laboral_total / inflacion_acumulada) %>% 
   mutate(cla_deflactado = suma_costo_laboral_Autoridades / inflacion_acumulada) 
 deflactor <- deflactor %>% 
-  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 7819168) %>% 
-  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 1735003090) %>% 
+  mutate(cla_deflactado_base_100 = cla_deflactado * 100 / 65227908) %>% 
+  mutate(clt_deflactado_base_100 = clt_deflactado * 100 / 13072246395) %>% 
   mutate(cla_promedio_base_100 = suma_costo_laboral_Autoridades / puestos_AS) %>% 
   mutate(clt_promedio = costo_laboral_total / puestos_total)
 ```
 
 ```{r}
-data_serie <- ts(deflactor$clt_deflactado, frequency = 12, start=2009)
+data_serie <- ts(deflactor$clt_deflactado, frequency = 12, start=2015)
 ```
 
 ```{r}
 autoplot(data_serie)+
-  labs(title = "Evolución del salario bruto deflactado - 2009/2022",       
+  labs(title = "Evolución del salario bruto deflactado - 2015/2022",       
        x = "Año",
        y = "Salario Bruto Deflactado - millones de pesos") +
   scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
@@ -166,7 +167,7 @@ autoplot(data_serie, series="Evolución") +
 ggseasonplot(data_serie) +
   scale_y_continuous(labels = scales::comma_format(scale = 1e-6),
                      breaks = scales::breaks_pretty(n = 5)) +
-  labs(title = "Evolución del salario bruto deflactado - 2009/2022",
+  labs(title = "Evolución del salario bruto deflactado - 2015/2022",
       x = "Mes",
       y = "Salario Bruto Deflactado - millones de pesos") 
   #scale_x_discrete(breaks = c("jan" = "ene", "feb" = "feb", "mar" = "mar", "apr" = "abr", "may" = "may", "jun" = "jun", "jul" = "jul", "aug" = "ago", "sep" = "sep", "oct" = "oct", "nov" = "nov", "dic" = "dic"))

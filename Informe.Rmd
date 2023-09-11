@@ -35,7 +35,7 @@ Nacion_2020_2022 <- read_delim("Data/Nacion/4_export-puestos_trabajo_2020_2022.c
 
 Nacion_2009_2022 <- rbind(Nacion_2009_2011, Nacion_2012_2015, Nacion_2016_2019, Nacion_2020_2022)
 
-Inflacion <- read_delim("Data/inflacioneta.csv", 
+Inflacion <- read_delim("Data/inflacioneta_2009.csv", 
     delim = ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
     trim_ws = TRUE)
 ```
